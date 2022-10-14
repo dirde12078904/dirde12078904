@@ -1,0 +1,94 @@
+PXE远程安装----ip/dns/firefox/gnome---dhcp---x
+
+1.ip
+
+vi /etc/sysconfig/network
+NETWORKING=yes
+HOSTNAME=www.bjsx.com
+
+vi /etc/sysconfig/network-scripts/ifcfg-eth0
+ONBOOT=yes
+BOOTPROTO=static
+IPADDR=192.168.200.240
+NETMASK=255.255.255.0
+GATEWAY=192.168.200.2
+DNS1=10.1.1.9
+DNS2=202.106.0.20
+
+
+vi /etc/hosts
+192.168.200.240	www.bjsx.com
+
+
+vi /etc/resolv.conf
+search bjsx.com
+nameserver 10.1.1.9
+nameserver 202.106.0.20
+
+service network restart
+/etc/init.d/network restart
+
+
+ifconfig eth0
+ping www.bjsx.com
+nslookup-----www.sohu.com
+
+2.数据包安装
+
+umount /dev/sr0 如果默认登录是界面的话
+mount /dev/sr0 /mnt 
+mount |grep sr 
+
+cd /etc/yum.repos.d  进入yum配置目录
+rm * -fr 
+vi 1.repo
+[yuminstall]
+name=123
+baseurl=file:///mnt
+enabled=1
+gpgcheck=0
+
+
+yum clean all
+yum makecache
+
+yum -y groupinstall Desktop
+yum -y groupinstall "X Window System"
+yum -y groupinstall "Chinese Support"
+yum -y install firefox
+
+
+init 5  进入界面可以浏览网页
+
+3.dhcp服务 
+yum -y install dhcp安装DHCP服务数据包
+rpm -qa |grep dhcp 验证dhcp数据包已经安装
+
+cp /usr/share/doc/dhcp-4.1.1/dhcpd.conf.sample  /etc/dhcp/dhcpd.conf
+复制dhcp服务例子配置文件到当前目录
+
+vi /etc/dhcp/dhcpd.conf 编辑dhcp服务配置文件
+subnet 192.168.200.0 netmask 255.255.255.0 {
+    range 192.168.200.10 192.168.200.50;
+    option routers 192.168.200.2;
+    option broadcase-address 192.168.200.2;
+    next-server 192.168.200.240;
+    filename "/pxelinux.0";
+    max-lease-time 86400;
+    default-lease-time 7200;
+}
+
+
+service dhcpd restart 重启dhcp服务
+
+less /var/log/messages 服务报错的日志文件
+
+chkconfig --level 35 dhcpd on 将dhcp服务设置为常开服务
+chkconfig --list |grep dhcp  验证dhcp服务是否常开
+
+iptables -F  关闭防火墙 
+iptables -L  验证防火墙策略
+
+cat /var/lib/dhcpd/dhcpd.lease 验证租约文件
+
+
