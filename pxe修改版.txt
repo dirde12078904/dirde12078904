@@ -1,0 +1,231 @@
+﻿命令行安装配硬盘
+1配置yum服务
+2下载:yum -y groupinstall BASE
+
+linux text method
+
+PXE-----IP/DNS/GNOME/DHCP/FTP/TFTP
+
+IP
+
+vi /etc/sysconfig/network-scripts/ifcfg-eth0
+ONBOOT=yes
+BOOTPROTO=static
+IPADDR=10.2.19.240
+NETMASK=255.255.255.0
+GATEWAY=10.2.19.1
+DNS1=10.1.1.9
+DNS2=202.106.0.20
+
+
+vi /etc/sysconfig/network
+NETWORKING=yes
+HOSTNAME=www.baidu.com
+
+
+vi /etc/hosts
+
+10.2.19.240	www.baidu.com
+
+ping www.baidu.com
+
+
+
+
+
+service network restart
+
+vi  /etc/resolv.conf
+nameserver 202.106.0.20
+nameserver 10.1.1.9
+search  baidu.com
+
+ifconfig eth0 
+......10.2.19.240......
+
+
+
+
+
+2.
+挂载光盘 安装数据包 
+
+mount  /dev/sr0   /mnt  将光盘挂载到mnt目录 
+
+/mnt    永久挂载
+/media  临时挂载
+
+
+mount  验证sr光盘是否挂载
+mount |grep sr   通过管道符命令“|”将mount内容输出给grep（查找）命令执行
+
+cd  /mnt/Packages 进入光盘的数据包目录 
+
+rpm  -ivh   dhcp-4.1.1.....rpm    通过rpm命令安装数据包  -ivh  i install安装   v verbose 显示细节  h hash #####
+
+rpm  -q  dhcp  验证数据包是否安装 
+
+rpm -e dhcp  卸载数据包 
+
+rpm -ql  dhcp   数据包具体安装路径 
+
+rpm -qa |grep dhcp  验证数据包是否安装 
+
+
+
+真实环境采用YUM服务完成安装
+
+cd    /etc/yum.repos.d/  进入yum服务配置目录
+
+rm  * -fr     rm删除  -fr f force强制  r 轮巡 
+
+vi   1.repo   yum服务配置文件（当前目录有且只有一个文件，必须repo作为结尾）
+
+[yuminstall]   yum服务名称
+name=yum   yum配置文档名称
+baseurl=file:///mnt     指定光盘挂载目录 
+enabled=1     开启yum服务
+gpgcheck=0    gpg光盘数据包序列号 
+
+yum  clean all   清空之前的配置缓存 
+
+yum makecache    生成配置缓存
+
+yum  -y  groupinstall  Desktop
+
+yum -y  groupinstall "X Window System"  安装桌面GNOME数据包组
+
+init  5  进入桌面 
+
+yum  -y  install   firefox  安装浏览器
+yum -y  groupinstall "Chinese Support"安装中文字体支持
+yum -y install vsftpd
+
+yum -y install ftp
+yum -y install tftp
+               tftp-server
+               dhcp
+
+
+
+3.配置dhcp服务
+
+cp /usr/share/doc/dhcp-4.1.1/dhcpd.conf.sample  /etc/dhcp/dhcpd.conf  将例子文件复制到配置文件
+
+vi /etc/dhcp/dhcpd.conf 编辑配置文档
+
+subnet 10.2.19.0 netmask 255.255.255.0 {
+
+  range  10.2.19.x  10.2.19.y;
+  option routers 10.2.19.1; 设置网关
+  option broadcast-address 10.2.19.255; 广播地址
+  default-lease-time 600; 默认租约时间
+  max-lease-time 7200; 最大租约时间
+  filename "/pxelinux.0"; 指定自动安装脚本文件 
+  next-server 10.2.19.240;指定下一跳服务器地址
+}
+
+
+service dhcpd restart
+
+chkconfig --level 35 dhcpd on 将dhcp服务设置为常开服务
+
+chkconfig --list |grep dhcp验证
+
+iptables -F 允许以上所有服务通过
+
+ 
+4.配置ftp服务
+
+cp -rv /mnt/*   /var/ftp/pub  将完整光盘复制到ftp主目录
+
+yum -y install createrepo 安装数据包关联关系重建工具
+
+
+createrepo -g /mnt/repodata/repomd.xml   /var/ftp/pub  重建数据包关联关系 
+
+vi /etc/vsftpd/vsftpd.conf  编辑ftp配置文档
+
+anon_upload_enable = yes 
+anon_mkdir_write_enable = yes 
+开启以上两项,取消注释
+
+service vsftpd restart
+
+chkconfig --level 35 vsftpd on
+
+chkconfig --list |grep ftp
+
+iptables -F
+
+
+
+vi /etc/yum.repos.d/1.repo
+
+baseurl=ftp://10.2.19.240/pub  将光盘源更改为ftp站点服务
+
+
+
+umount /dev/sr0 卸载光盘
+
+
+
+5.配置无人值守安装文件
+
+yum -y install kickstart安装智能安装脚本
+
+system-config-kickstart  进入界面化配置
+基本配置，口令（密码）
+安装方法，ftp，服务器：IP
+ftp目录：/pub
+保存到root
+
+cp /root/ks.cfg  /var/ftp/pub  将无人值守安装文件拷贝到ftp主目录
+
+
+6.配置tftp服务
+
+yum -y install tftp 
+	       tftp-server 
+
+vi /etc/xinetd.d/tftp 配置tftp配置文档
+
+disable = no  开启ftp服务
+
+serv_args = -s /tftpboot -u nobody   设定tftp主目录,并设置用户权限为nobody
+
+
+
+
+service xinetd restart  重启超级守护进程 
+
+
+mkdir /tftpboot  创建tftp主目录
+
+cd /tftpboot
+
+cp -rv /var/ftp/pub/isolinux/*   ./ 将光盘内自动安装环境配置复制到当前目录
+
+mkdir pxelinux.cfg  创建自动配置子文件夹
+
+cd pxelinux.cfg
+
+cp /var/ftp/pub/isolinux/isolinux.cfg   ./default  将自动安装配置文档复制到当前目录,并重命名为default
+
+chmod a+x default 将文件权限设置为可执行                                
+cd .. 退到上一级目录
+
+cp /usr/share/syslinux/pxelinux.0  ./   将自动安装脚本文件复制到当前目录
+
+
+setenforce 0  关闭selinux策略防火墙
+
+getenforce 验证防火墙是否关闭
+
+
+
+
+
+
+
+
