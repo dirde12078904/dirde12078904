@@ -1,0 +1,171 @@
+PXEBOOT远程安装
+
+1.ip/dns/firefox/gnome
+
+vi /etc/sysconfig/network
+NETWORKING=yes
+HOSTNAME=www.qq.com
+
+hostname www.qq.com
+
+vi /etc/sysconfig/network-scripts/ifcfg-eth0
+ONBOOT=yes
+BOOTPROTO=static
+IPADDR=192.168.200.240
+NETMASK=255.255.255.0
+GATEWAY=192.168.200.2
+DNS1=10.1.1.9
+DNS2=202.106.0.20
+
+
+ifconfig eth0 验证网卡ip是否生效
+
+vi /etc/hosts
+192.168.200.240	 www.qq.com
+
+ping www.qq.com
+
+vi /etc/resolv.conf
+search qq.com
+nameserver 10.1.1.9
+nameserver 202.106.0.20
+
+nslookup验证dns服务可以解析
+
+
+2.安装桌面
+mount   /dev/sr0  /mnt
+
+mount |grep sr0 验证光盘是否挂载
+
+cd /mnt/Packages
+rpm -ivh dhcp-4.1.1.....rpm  安装数据包
+rpm -qa |grep dhcp 验证数据包是否安装
+rpm -e  dhcp卸载数据包
+
+配置YUM服务
+cd /etc/yum.repos.d
+rm * -fr
+vi 1.repo
+[yuminstall]
+name=123
+baseurl=file:///mnt
+enabled=1
+gpgcheck=0
+
+
+yum clean all
+yum makecache 
+
+yum -y groupinstall Desktop
+yum -y groupinstall "X Window System"
+yum -y groupinstall "Chinese Support"
+yum -y install firefox
+
+3.配置dhcp服务
+yum -y install dhcp 安装dhcp服务
+cp /usr/share/doc/dhcp/dhcpd.conf.sample   /etc/dhcp/dhcpd.conf
+vi /etc/dhcp/dhcpd.conf 编辑dhcp配置文档
+subnet 192.168.200.0 netmask 255.255.255.0{  设置dhcp作用域
+
+range 192.168.200.10 192.168.200.100; 设置可分配地址范围
+option domainname "www.qq.com";  设定域名
+option domain-name-server 10.1.1.9;  设置dns地址
+option routers 192.168.200.2;    设置网关地址
+option broadcast-address 192.168.200.255;  设置广播地址
+default-lease-time 600;  设置默认租约时间
+max-lease-time 86400;  设置最大租约时间
+next-server 192.168.200.240;   设置下一跳服务器地址
+filename  "/pxelinux.0";   指定自动安装脚本文件路径
+}
+
+service dhcpd restart 重启dhcp服务
+chkconfig --level 35 dhcpd on 设置dhcp为常开服务
+chkconfig --list |grep dhcp 验证是否常开
+
+iptables -F 关闭防火墙
+iptables -L 验证防火墙是否关闭
+
+cat /var/lib/dhcpd/dhcpd.lease 验证租约文件
+
+
+4.配置FTP服务
+yum -y install vsftpd   安装ftp服务
+cd   /var/ftp/pub  进入ftp默认主目录
+cp -rv /mnt/*    /var/ftp/pub   将光盘拷贝到ftp主目录
+cd   /var/ftp/pub 
+du . -sh  显示当前目录容量
+
+yum -y install createrepo  安装重建关联关系数据包
+
+createrepo -g /mnt/repodata/repomd.xml  /var/ftp/pub 重建数据包关联关系
+
+cd /etc/yum.repos.d/ 再次进入yum配置文档
+vi 1.repo
+[yuminstall]
+name=123
+baseurl=ftp://192.168.200.240/pub  通过ftp服务完成yum服务
+enabled=1
+gpgcheck=0
+
+
+vi /etc/vsftpd/vsftpd.conf 编辑ftp服务配置文档
+anon_upload_enable=yes  允许匿名用户上传
+anon_mkdir_write_enable=yes 允许匿名用户具备写权限
+将以上两项选项的注释取消
+
+
+service vsftpd restart 
+chkconfig --level 35 vsftpd on
+ftp服务
+
+yum -y install vsftpd 安装ftp服务
+
+rpm -qa |grep ftp 验证ftp服务是否安装
+
+vi /etc/vsftpd/vsftpd.conf 编辑ftp服务配置文档
+
+anon_upload_enable=YES   允许匿名用户上传
+anon_mkdir_write_enable=YES  开启匿名用户写权限
+
+
+
+service vsftpd restart
+
+chkconfig --level 35 vsftpd on
+
+cp -rv /mnt/*   /var/ftp/pub 将光盘内容完整拷贝到ftp主目录
+
+du -sh  验证光盘内容已下载 
+
+
+
+yum -y install createrepo 安装数据包重建工具
+
+createrepo -g /mnt/repodata/repomd.xml   /var/ftp/pub   重建数据包关联关系
+
+
+yum -y install lftp   安装lftp命令（用于在linux系统本地验证ftp服务是否生效）
+
+
+
+vi /etc/yum.repos.d/1.repo
+
+baseurl=ftp://192.168.200.240/pub 修改yum安装源，改为通过ftp服务方式
+
+
+下载数据到windows系统桌面
+
+cd /var/ftp/pub 进入ftp主目录
+
+ls -lR /boot  >1    将/boot目录所有内容输出到文件1
+
+
+进入到windows系统
+输入cmd
+ftp----open----192.168.200.240
+user:ftp
+password:ftp
+
+get下载
+put上传 
