@@ -1,0 +1,84 @@
+rm -fr /etc/yum.repas.d/*
+vi  /etc/yum.repus.d/1.repo
+[yuminstall]
+name=123
+enabled=1   开启yum服务
+gpgcheck=0
+baseurl=file:///mnl
+
+mount /dev/sr0 /mnt 挂载镜像
+yum clean all
+yum makecache
+yum -y groupinstall Desktop
+yum -y groupinstall "X Window System"
+yum makecache
+yum -y install dhcp
+yum -y install ftp
+yum -y install tftp
+yum -y install tftp-server
+yum -y install dhcp
+yum -y install vsftpd
+
+
+vi /etc/dhcp/dhcpd.conf 编辑配置文档
+
+subnet 10.2.19.0 netmask 255.255.255.0 {
+
+  range  10.5.5.26 10.5.5.30;
+  option routers 10.2.19.1; 设置网关
+  option broadcast-address 10.5.5.31; 广播地址
+  default-lease-time 600; 默认租约时间
+  max-lease-time 7200; 最大租约时间
+  filename "/pxelinux.0"; 指定自动安装脚本文件 
+  next-server 10.2.32.34;指定下一跳服务器地址
+}
+
+
+cp /usr/share/doc/dhcp-4.1.1/dhcpd.conf.sample  /etc/dhcp/dhcpd.conf  将例子文件复制到配置文件
+cp /mnt/images/pxeboot/initrd.img /var/lib /tftpboot/
+cp /usr/share/syslinux/pxelinux.0 /var/lib/tftpboot
+cp /mnt/images/pxeboot/vmlinuz /var/lib/tftpboot
+mkdir /var/lib/tftpboot/pxelinux.cfg
+vi /var/lib/tftpboot/pxelinux.cfg/default
+default auto
+prompt 0
+label auto
+kernel vmlinuz
+append initrd-initrd.img method=ftp://10.2.32.34/pub ks=ftp://10.2.32.34/pub/ks
+cfg
+label linux text
+kernel vmlinuz
+append initrd=initrd.img method=ftp://10.2.32.34/pub
+label linux rescue
+kernel vmlinuz
+append initrd=initrd.img methpd=ftp://10.2.32.34/pub
+init 5
+yum -y install system-config-kickstart
+点击Applications-System Tools-Kickstart
+在Basic Configuration-Root Password:123456-Confirm Password:123456
+然后吧 Reboot system after installation 打上勾
+lnstallation Method -ftp
+10.2.32.34
+pub
+到partition 
+master-clear
+par-remove
+Disk-lnitialize
+点击Add
+
+mount:/
+fixed:5048
+
+mount:/boot
+fixed:2048
+
+mount:/home
+fixed:3048
+
+File:swap
+fixed:5048
+
+Firewall
+SElinux:Disabled
+
+
