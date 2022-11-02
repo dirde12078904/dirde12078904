@@ -7,6 +7,10 @@ gpgcheck=0
 baseurl=file:///mnl
 
 mount /dev/sr0 /mnt 挂载镜像
+cd /mnt/Packages
+rpm -ivh dhcp-4.1.1.....rpm  安装数据包
+rpm -qa |grep dhcp 验证数据包是否安装
+rpm -e  dhcp卸载数据包
 yum clean all
 yum makecache
 yum -y groupinstall Desktop
