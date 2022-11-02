@@ -32,7 +32,7 @@ subnet 10.2.19.0 netmask 255.255.255.0 {
   filename "/pxelinux.0"; 指定自动安装脚本文件 
   next-server 10.2.32.34;指定下一跳服务器地址
 }
-service dhcpd restart 重启dhcp服务
+service dhcpd restart 重启dhcp服务(重要)
 
 cp /usr/share/doc/dhcp-4.1.1/dhcpd.conf.sample  /etc/dhcp/dhcpd.conf  将例子文件复制到配置文件
 cp /mnt/images/pxeboot/initrd.img /var/lib /tftpboot/
@@ -81,4 +81,20 @@ fixed:5048
 Firewall
 SElinux:Disabled
 
+Package Setection - Base System
+Backup Cllent
+Base
+Compatibillty libraries
+
+flie-Save
+Name:ks.cfg
+Save root
+cp ks.cfg /var/ftp/pub
+cp /mnt/*  /var/ftp/pub
+cp  -fr /mnt/*  /var/ftp/pub
+service dhcpd restart
+service xinetd restart
+service iptables stop
+setenforce 0
+service vsftpd restart
 
